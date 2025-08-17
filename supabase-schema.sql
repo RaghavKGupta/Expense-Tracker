@@ -48,14 +48,44 @@ ALTER TABLE incomes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE custom_categories ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies - users can only access their own data
-CREATE POLICY "Users can only access their own expenses" ON expenses
-    FOR ALL USING (auth.uid() = user_id);
+-- Expenses policies
+CREATE POLICY "Users can view their own expenses" ON expenses
+    FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can only access their own incomes" ON incomes
-    FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own expenses" ON expenses
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can only access their own custom categories" ON custom_categories
-    FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can update their own expenses" ON expenses
+    FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own expenses" ON expenses
+    FOR DELETE USING (auth.uid() = user_id);
+
+-- Incomes policies
+CREATE POLICY "Users can view their own incomes" ON incomes
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own incomes" ON incomes
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own incomes" ON incomes
+    FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own incomes" ON incomes
+    FOR DELETE USING (auth.uid() = user_id);
+
+-- Custom categories policies
+CREATE POLICY "Users can view their own custom categories" ON custom_categories
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own custom categories" ON custom_categories
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own custom categories" ON custom_categories
+    FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own custom categories" ON custom_categories
+    FOR DELETE USING (auth.uid() = user_id);
 
 -- Create indexes for better performance
 CREATE INDEX idx_expenses_user_id ON expenses(user_id);

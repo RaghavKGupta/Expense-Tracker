@@ -258,9 +258,16 @@ export class DatabaseService {
 
   // Bulk operations for data migration
   async bulkInsertExpenses(expenses: Omit<Expense, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<void> {
+    const { data: { user } } = await this.supabase.auth.getUser()
+    
+    if (!user) {
+      throw new Error('User not authenticated')
+    }
+
     const { error } = await this.supabase
       .from('expenses')
       .insert(expenses.map(expense => ({
+        user_id: user.id,
         amount: expense.amount,
         description: expense.description,
         category: expense.category,
@@ -277,9 +284,16 @@ export class DatabaseService {
   }
 
   async bulkInsertIncomes(incomes: Omit<Income, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<void> {
+    const { data: { user } } = await this.supabase.auth.getUser()
+    
+    if (!user) {
+      throw new Error('User not authenticated')
+    }
+
     const { error } = await this.supabase
       .from('incomes')
       .insert(incomes.map(income => ({
+        user_id: user.id,
         amount: income.amount,
         source: income.category,
         description: income.description,
