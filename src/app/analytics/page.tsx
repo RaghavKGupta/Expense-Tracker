@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Expense } from '@/types/expense';
+import { Expense, Income } from '@/types/expense';
 import { MonthlyData, AnnualData, SpendingPattern, SpendingSuggestion } from '@/types/analytics';
-import { csvStorage } from '@/lib/csvStorage';
+import { db } from '@/lib/supabase/database';
 import { parseLocalDate } from '@/lib/dateUtils';
 import { 
   generateMonthlyAnalytics, 
@@ -31,6 +31,7 @@ import {
 
 export default function AnalyticsPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [incomes, setIncomes] = useState<Income[]>([]);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [annualData, setAnnualData] = useState<AnnualData | null>(null);
@@ -39,21 +40,30 @@ export default function AnalyticsPage() {
   const [viewMode, setViewMode] = useState<'monthly' | 'annual' | 'insights' | 'reports'>('monthly');
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadData = useCallback(() => {
-    const loadedExpenses = csvStorage.getExpenses();
-    const loadedIncomes = csvStorage.getIncome();
-    setExpenses(loadedExpenses);
-    
-    const monthly = generateMonthlyAnalytics(loadedExpenses, loadedIncomes, selectedYear);
-    const annual = generateAnnualAnalytics(loadedExpenses, loadedIncomes, selectedYear);
-    const detectedPatterns = detectSpendingPatterns(loadedExpenses);
-    const generatedSuggestions = generateSpendingSuggestions(loadedExpenses, monthly, detectedPatterns);
-    
-    setMonthlyData(monthly);
-    setAnnualData(annual);
-    setPatterns(detectedPatterns);
-    setSuggestions(generatedSuggestions);
-    setIsLoading(false);
+  const loadData = useCallback(async () => {
+    try {
+      const [loadedExpenses, loadedIncomes] = await Promise.all([
+        db.getExpenses(),
+        db.getIncomes()
+      ]);
+      
+      setExpenses(loadedExpenses);
+      setIncomes(loadedIncomes);
+      
+      const monthly = generateMonthlyAnalytics(loadedExpenses, loadedIncomes, selectedYear);
+      const annual = generateAnnualAnalytics(loadedExpenses, loadedIncomes, selectedYear);
+      const detectedPatterns = detectSpendingPatterns(loadedExpenses);
+      const generatedSuggestions = generateSpendingSuggestions(loadedExpenses, monthly, detectedPatterns);
+      
+      setMonthlyData(monthly);
+      setAnnualData(annual);
+      setPatterns(detectedPatterns);
+      setSuggestions(generatedSuggestions);
+    } catch (error) {
+      console.error('Error loading analytics data:', error);
+    } finally {
+      setIsLoading(false);
+    }
   }, [selectedYear]);
 
   useEffect(() => {

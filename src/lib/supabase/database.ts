@@ -1,5 +1,6 @@
 import { createClient } from './client'
 import { Expense, Income, CustomCategory } from '@/types/expense'
+import { Asset, Liability, NetWorthSnapshot } from '@/types/financial'
 
 export class DatabaseService {
   private supabase = createClient()
@@ -304,6 +305,275 @@ export class DatabaseService {
 
     if (error) {
       console.error('Error bulk inserting incomes:', error)
+      throw error
+    }
+  }
+
+  // Assets
+  async getAssets(): Promise<Asset[]> {
+    const { data, error } = await this.supabase
+      .from('assets')
+      .select('*')
+      .order('name')
+
+    if (error) {
+      console.error('Error fetching assets:', error)
+      throw error
+    }
+
+    return (data || []).map(asset => ({
+      id: asset.id,
+      name: asset.name,
+      category: asset.category,
+      currentValue: asset.value,
+      description: asset.description,
+      lastUpdated: asset.updated_at,
+      isTracked: false,
+      valuationHistory: [{
+        date: asset.created_at.split('T')[0],
+        value: asset.value,
+        note: 'Initial valuation'
+      }]
+    }))
+  }
+
+  async addAsset(asset: Omit<Asset, 'id'>): Promise<Asset> {
+    const { data: { user } } = await this.supabase.auth.getUser()
+    
+    if (!user) {
+      throw new Error('User not authenticated')
+    }
+
+    const { data, error } = await this.supabase
+      .from('assets')
+      .insert({
+        user_id: user.id,
+        name: asset.name,
+        category: asset.category,
+        value: asset.currentValue,
+        description: asset.description,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error adding asset:', error)
+      throw error
+    }
+
+    return {
+      id: data.id,
+      name: data.name,
+      category: data.category,
+      currentValue: data.value,
+      description: data.description,
+      lastUpdated: data.updated_at,
+      isTracked: false,
+      valuationHistory: [{
+        date: data.created_at.split('T')[0],
+        value: data.value,
+        note: 'Initial valuation'
+      }]
+    }
+  }
+
+  async updateAsset(asset: Asset): Promise<Asset> {
+    const { data, error } = await this.supabase
+      .from('assets')
+      .update({
+        name: asset.name,
+        category: asset.category,
+        value: asset.currentValue,
+        description: asset.description,
+      })
+      .eq('id', asset.id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error updating asset:', error)
+      throw error
+    }
+
+    return {
+      id: data.id,
+      name: data.name,
+      category: data.category,
+      currentValue: data.value,
+      description: data.description,
+      lastUpdated: data.updated_at,
+      isTracked: asset.isTracked,
+      valuationHistory: asset.valuationHistory
+    }
+  }
+
+  async deleteAsset(id: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('assets')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.error('Error deleting asset:', error)
+      throw error
+    }
+  }
+
+  // Liabilities
+  async getLiabilities(): Promise<Liability[]> {
+    const { data, error } = await this.supabase
+      .from('liabilities')
+      .select('*')
+      .order('name')
+
+    if (error) {
+      console.error('Error fetching liabilities:', error)
+      throw error
+    }
+
+    return (data || []).map(liability => ({
+      id: liability.id,
+      name: liability.name,
+      category: liability.category,
+      currentBalance: liability.amount,
+      interestRate: liability.interest_rate,
+      minimumPayment: liability.minimum_payment,
+      description: liability.description,
+      startDate: liability.created_at.split('T')[0],
+      lastUpdated: liability.updated_at,
+      paymentHistory: []
+    }))
+  }
+
+  async addLiability(liability: Omit<Liability, 'id'>): Promise<Liability> {
+    const { data: { user } } = await this.supabase.auth.getUser()
+    
+    if (!user) {
+      throw new Error('User not authenticated')
+    }
+
+    const { data, error } = await this.supabase
+      .from('liabilities')
+      .insert({
+        user_id: user.id,
+        name: liability.name,
+        category: liability.category,
+        amount: liability.currentBalance,
+        interest_rate: liability.interestRate,
+        minimum_payment: liability.minimumPayment,
+        description: liability.description,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error adding liability:', error)
+      throw error
+    }
+
+    return {
+      id: data.id,
+      name: data.name,
+      category: data.category,
+      currentBalance: data.amount,
+      interestRate: data.interest_rate,
+      minimumPayment: data.minimum_payment,
+      description: data.description,
+      startDate: data.created_at.split('T')[0],
+      lastUpdated: data.updated_at,
+      paymentHistory: []
+    }
+  }
+
+  async updateLiability(liability: Liability): Promise<Liability> {
+    const { data, error } = await this.supabase
+      .from('liabilities')
+      .update({
+        name: liability.name,
+        category: liability.category,
+        amount: liability.currentBalance,
+        interest_rate: liability.interestRate,
+        minimum_payment: liability.minimumPayment,
+        description: liability.description,
+      })
+      .eq('id', liability.id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error updating liability:', error)
+      throw error
+    }
+
+    return {
+      id: data.id,
+      name: data.name,
+      category: data.category,
+      currentBalance: data.amount,
+      interestRate: data.interest_rate,
+      minimumPayment: data.minimum_payment,
+      description: data.description,
+      startDate: liability.startDate,
+      lastUpdated: data.updated_at,
+      paymentHistory: liability.paymentHistory
+    }
+  }
+
+  async deleteLiability(id: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('liabilities')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.error('Error deleting liability:', error)
+      throw error
+    }
+  }
+
+  // Networth Snapshots
+  async getNetWorthSnapshots(): Promise<NetWorthSnapshot[]> {
+    const { data, error } = await this.supabase
+      .from('networth_snapshots')
+      .select('*')
+      .order('date', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching networth snapshots:', error)
+      throw error
+    }
+
+    return (data || []).map(snapshot => ({
+      date: snapshot.date,
+      totalAssets: snapshot.total_assets,
+      totalLiabilities: snapshot.total_liabilities,
+      netWorth: snapshot.net_worth,
+      assetBreakdown: snapshot.asset_breakdown || {},
+      liabilityBreakdown: snapshot.liability_breakdown || {},
+    }))
+  }
+
+  async saveNetWorthSnapshot(snapshot: NetWorthSnapshot): Promise<void> {
+    const { data: { user } } = await this.supabase.auth.getUser()
+    
+    if (!user) {
+      throw new Error('User not authenticated')
+    }
+
+    const { error } = await this.supabase
+      .from('networth_snapshots')
+      .upsert({
+        user_id: user.id,
+        date: snapshot.date,
+        total_assets: snapshot.totalAssets,
+        total_liabilities: snapshot.totalLiabilities,
+        net_worth: snapshot.netWorth,
+        asset_breakdown: snapshot.assetBreakdown,
+        liability_breakdown: snapshot.liabilityBreakdown,
+      })
+
+    if (error) {
+      console.error('Error saving networth snapshot:', error)
       throw error
     }
   }

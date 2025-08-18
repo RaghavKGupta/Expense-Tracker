@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Asset, AssetCategory } from '@/types/financial';
-import { financialStorage } from '@/lib/financialStorage';
-import { formatCurrency, generateId } from '@/lib/utils';
+import { db } from '@/lib/supabase/database';
+import { formatCurrency } from '@/lib/utils';
 import { 
   Plus, 
   TrendingUp, 
@@ -40,46 +40,65 @@ export default function AssetsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadedAssets = financialStorage.getAssets();
-    setAssets(loadedAssets);
-    setIsLoading(false);
+    loadAssets();
   }, []);
 
-  const handleAddAsset = (assetData: Partial<Asset>) => {
-    const newAsset: Asset = {
-      id: generateId(),
-      name: assetData.name || '',
-      category: assetData.category || 'Other Assets',
-      currentValue: assetData.currentValue || 0,
-      purchasePrice: assetData.purchasePrice,
-      purchaseDate: assetData.purchaseDate,
-      description: assetData.description,
-      lastUpdated: new Date().toISOString(),
-      isTracked: assetData.isTracked || false,
-      valuationHistory: [{
-        date: new Date().toISOString().split('T')[0],
-        value: assetData.currentValue || 0,
-        note: 'Initial valuation'
-      }]
-    };
-    
-    financialStorage.addAsset(newAsset);
-    setAssets(prev => [...prev, newAsset]);
-    setShowAddModal(false);
+  const loadAssets = async () => {
+    try {
+      const loadedAssets = await db.getAssets();
+      setAssets(loadedAssets);
+    } catch (error) {
+      console.error('Error loading assets:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleUpdateAsset = (updatedAsset: Asset) => {
-    financialStorage.updateAsset(updatedAsset);
-    setAssets(prev => prev.map(asset => 
-      asset.id === updatedAsset.id ? updatedAsset : asset
-    ));
-    setEditingAsset(null);
+  const handleAddAsset = async (assetData: Partial<Asset>) => {
+    try {
+      const newAsset = await db.addAsset({
+        name: assetData.name || '',
+        category: assetData.category || 'Other Assets',
+        currentValue: assetData.currentValue || 0,
+        purchasePrice: assetData.purchasePrice,
+        purchaseDate: assetData.purchaseDate,
+        description: assetData.description,
+        lastUpdated: new Date().toISOString(),
+        isTracked: assetData.isTracked || false,
+        valuationHistory: [{
+          date: new Date().toISOString().split('T')[0],
+          value: assetData.currentValue || 0,
+          note: 'Initial valuation'
+        }]
+      });
+      
+      setAssets(prev => [...prev, newAsset]);
+      setShowAddModal(false);
+    } catch (error) {
+      console.error('Error adding asset:', error);
+    }
   };
 
-  const handleDeleteAsset = (assetId: string) => {
+  const handleUpdateAsset = async (updatedAsset: Asset) => {
+    try {
+      await db.updateAsset(updatedAsset);
+      setAssets(prev => prev.map(asset => 
+        asset.id === updatedAsset.id ? updatedAsset : asset
+      ));
+      setEditingAsset(null);
+    } catch (error) {
+      console.error('Error updating asset:', error);
+    }
+  };
+
+  const handleDeleteAsset = async (assetId: string) => {
     if (confirm('Are you sure you want to delete this asset?')) {
-      financialStorage.deleteAsset(assetId);
-      setAssets(prev => prev.filter(asset => asset.id !== assetId));
+      try {
+        await db.deleteAsset(assetId);
+        setAssets(prev => prev.filter(asset => asset.id !== assetId));
+      } catch (error) {
+        console.error('Error deleting asset:', error);
+      }
     }
   };
 

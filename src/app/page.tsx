@@ -194,7 +194,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Show data migration component */}
+        {/* Show data migration component only if there's data to migrate */}
         <div className="slide-up" style={{ animationDelay: '0.15s' }}>
           <DataMigration />
         </div>

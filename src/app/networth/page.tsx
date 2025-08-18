@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Asset, Liability, NetWorthSnapshot } from '@/types/financial';
-import { financialStorage } from '@/lib/financialStorage';
+import { db } from '@/lib/supabase/database';
 import { generateNetWorthSnapshot } from '@/lib/financialCalculations';
 import { formatCurrency } from '@/lib/utils';
 import { 
@@ -30,32 +30,42 @@ export default function NetWorthPage() {
     loadFinancialData();
   }, []);
 
-  const loadFinancialData = () => {
-    const loadedAssets = financialStorage.getAssets();
-    const loadedLiabilities = financialStorage.getLiabilities();
-    const history = financialStorage.getNetWorthHistory();
-    
-    setAssets(loadedAssets);
-    setLiabilities(loadedLiabilities);
-    setNetWorthHistory(history);
-    
-    // Generate current snapshot
-    const previousSnapshot = history.length > 0 ? history[history.length - 1] : undefined;
-    const snapshot = generateNetWorthSnapshot(loadedAssets, loadedLiabilities, previousSnapshot);
-    setCurrentSnapshot(snapshot);
-    
-    setIsLoading(false);
+  const loadFinancialData = async () => {
+    try {
+      const [loadedAssets, loadedLiabilities, history] = await Promise.all([
+        db.getAssets(),
+        db.getLiabilities(),
+        db.getNetWorthSnapshots()
+      ]);
+      
+      setAssets(loadedAssets);
+      setLiabilities(loadedLiabilities);
+      setNetWorthHistory(history);
+      
+      // Generate current snapshot
+      const previousSnapshot = history.length > 0 ? history[history.length - 1] : undefined;
+      const snapshot = generateNetWorthSnapshot(loadedAssets, loadedLiabilities, previousSnapshot);
+      setCurrentSnapshot(snapshot);
+    } catch (error) {
+      console.error('Error loading financial data:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSaveSnapshot = () => {
+  const handleSaveSnapshot = async () => {
     if (currentSnapshot) {
-      financialStorage.saveNetWorthSnapshot(currentSnapshot);
-      setNetWorthHistory(prev => {
-        const filtered = prev.filter(snap => snap.date !== currentSnapshot.date);
-        return [...filtered, currentSnapshot].sort((a, b) => 
-          new Date(a.date).getTime() - new Date(b.date).getTime()
-        );
-      });
+      try {
+        await db.saveNetWorthSnapshot(currentSnapshot);
+        setNetWorthHistory(prev => {
+          const filtered = prev.filter(snap => snap.date !== currentSnapshot.date);
+          return [...filtered, currentSnapshot].sort((a, b) => 
+            new Date(a.date).getTime() - new Date(b.date).getTime()
+          );
+        });
+      } catch (error) {
+        console.error('Error saving snapshot:', error);
+      }
     }
   };
 
